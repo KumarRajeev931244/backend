@@ -1,10 +1,11 @@
-import { throwDeprecation } from 'process';
+
 import { User } from '../models/user.model.js';
 import { ApiError } from '../utils/ApiError.js';
 import { ApiResponse } from '../utils/ApiResponse.js';
 import asyncHandler from '../utils/asyncHandler.js'
 import { uploadOnCloudinary } from '../utils/cloudinary.js';
 import mongoose from 'mongoose';
+import jwt from 'jsonwebtoken'
 
 const generateAccessAndRefreshTokens = async(userId) => {
     try {
@@ -191,8 +192,11 @@ const logoutUser = asyncHandler(async(req, res) => {
     await User.findByIdAndUpdate(
         req.user._id,
         {
-            $set: {
-                refreshToken: undefined
+            // $set: {
+            //     refreshToken: undefined
+            // }
+            $unset: {
+                refreshToken: 1 // this remove the field from document.
             }
         },
         {
@@ -279,7 +283,10 @@ const changeCurrentPassword = asyncHandler(async(req,res) => {
 const getCurrentUser = asyncHandler(async(req, res) => {
     return res
     .status(200)
-    .json(200, req.user, "current user fetched successfully")
+    // .json(200, req.user, "current user fetched successfully")
+    .json(
+         new ApiResponse(200, req.user, "current user fetched successfully")
+    )
 })
 
 const updateAccountDetails = asyncHandler(async(req, res) => {
@@ -363,6 +370,8 @@ const updateUserCoverImage = asyncHandler(async(req, res) => {
 
 const getUserChannelProfile = asyncHandler(async(req, res) => {
     const {username} = req.params
+    console.log(`username:${username}`);
+    
 
     if(!username?.trim()){
         throw new ApiError(400, "username is missing")
@@ -419,8 +428,6 @@ const getUserChannelProfile = asyncHandler(async(req, res) => {
                 email: 1
             }
         }
-
-
     ])
 
     console.log(`channel: ${channel}`);
