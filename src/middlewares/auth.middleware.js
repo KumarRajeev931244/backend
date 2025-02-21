@@ -5,7 +5,10 @@ import jwt from 'jsonwebtoken'
 
 export const verifyJWT = asyncHandler(async(req, res, next) => {
     try {
-        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer", "")
+        // req have access of cookie by cookie parser
+        const token = req.cookies?.accessToken || req.header("Authorization")?.replace("Bearer ", "")
+        // console.log("token:", token); // it will generate token
+        
     
         if(!token){
             throw new ApiError(401, "unauthorized request")
@@ -14,11 +17,12 @@ export const verifyJWT = asyncHandler(async(req, res, next) => {
         // jiske pass access token hoga vahi use decode kar payga.
         const decodedToken = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET)
     
-    
         const user = await User.findById(decodedToken?._id).select("-password -refreshToken")
+        console.log("user", user);
+        
     
         if(!user){
-            // discuss about frontend
+            //TODO: discuss about frontend
             throw new ApiError(401, "invalid Access token")
         }
     

@@ -16,12 +16,9 @@ const generateAccessAndRefreshTokens = async(userId) => {
         // save karne se phele validate kar do.
         await user.save({validateBeforeSave: false})
         return {accessToken, refreshToken}
-
     } catch (error) {
         throw new ApiError(500, "something went wrong while generating refresh and access token")
-        
     }
-
 }
 
 
@@ -37,7 +34,9 @@ const registerUser = asyncHandler(async(req, res) => {
     // remove the password and the refresh token field from response
     // check for user creation
     // return res
-    console.log("request body:", req);
+
+    // console.log("request body:", req);
+    // console.log(`base_URL: ${req.baseUrl}`)
     
     const {fullname, email, username, password} = req.body
 
@@ -47,14 +46,15 @@ const registerUser = asyncHandler(async(req, res) => {
 
     if(
         [fullname, email, username, password].some((field) => field?.trim() === "")
-    ){
+    ){ 
+        
         throw new ApiError(400, "all field are required")
     }
     
     const existedUser = await User.findOne({
         $or: [{username}, {email}]
     })
-    // console.log(`existed user: ${existedUser}`);
+    console.log(`existed user: ${existedUser}`);
     
 
     if(existedUser){
@@ -62,10 +62,11 @@ const registerUser = asyncHandler(async(req, res) => {
     }
 
     const avatarLocalPath =  req.files?.avatar[0]?.path;
-    console.log(`avtar local path: ${avatarLocalPath}`);
-    console.log(`full name: ${fullname}`);
-    console.log(`email: ${email}`);
-    console.log(`username: ${username}`);
+
+    // console.log(`avtar local path: ${avatarLocalPath}`);
+    // console.log(`full name: ${fullname}`);
+    // console.log(`email: ${email}`);
+    // console.log(`username: ${username}`);
     
     // const coverImageLocalPath =  req.files?.coverImage[0]?.path;
 
@@ -73,7 +74,7 @@ const registerUser = asyncHandler(async(req, res) => {
     if(req.files && Array.isArray(req.files.coverImage) && req.files.coverImage.length > 0){
         coverImageLocalPath = req.files.coverImage[0].path
     }
-    console.log(`cover image local path: ${coverImageLocalPath}`);
+    // console.log(`cover image local path: ${coverImageLocalPath}`);
     
 
     if(!avatarLocalPath){
@@ -98,6 +99,8 @@ const registerUser = asyncHandler(async(req, res) => {
     const createdUser =  await User.findById(user._id).select(
         "-password -refreshToken"
     )
+    console.log(`created User: ${createdUser}`); // it will bring all the value expect password or refreshtoken
+    
 
     if(!createdUser){
         throw new ApiError(500, "something went wrong while created user")
@@ -108,29 +111,9 @@ const registerUser = asyncHandler(async(req, res) => {
     )
 })
 
-// const registerUser = asyncHandler(async (req, res) => {
-//     // get user details from frontend.
-//     // validation -not empty
-//     // check if user already exists: username, email
-//     // check for images, checks for avatar
-//     // upload them to cloudinary, avatar
-//     // create user object - create entry in db
-//     // remove password and refreshtoken field from response
-//     // check for user creation
-//     // return res
-
-//     console.log("request:", req.body);
-
-
-    
-// })
-
-
-
 // access token is short live and refresh token is long live.
 
 const loginUser = asyncHandler(async(req, res) =>{
-    console.log(`request:${req.body}`);
     
     // req body -> data
     // username or email se login karna hai.
@@ -140,22 +123,22 @@ const loginUser = asyncHandler(async(req, res) =>{
     // send cookie(secure cookie)
 
     const {email, username, password} = req.body
-    console.log(`username ${username} and password ${password}`);
+    // console.log("request:", req);
     
-
     if(!(username || email)){
         throw new ApiError(400, "username or email is required")
     }
-
     const user = await User.findOne({
         $or: [{username}, {email}]
     })
-
+    // console.log("user", user);
+    
     if(!user){
         throw new ApiError(404, "user does not exist")
     }
-
     const isPasswordValid =  await user.isPasswordCorrect(password)
+    // console.log("password:", isPasswordValid); // it will generate true or false value
+    
 
     if(!isPasswordValid){
         throw new ApiError(401, "invalid user credentials")
@@ -163,8 +146,6 @@ const loginUser = asyncHandler(async(req, res) =>{
 
     const {accessToken, refreshToken} =  await generateAccessAndRefreshTokens(user._id)
     console.log(`accessToken: ${accessToken}`);
-    
-
     const loggedInUser = await User.findById(user._id).select("-password -refreshToken")
 
     // it helps in preventing cookie from modifying from frontend and it will change from server.
@@ -216,6 +197,11 @@ const logoutUser = asyncHandler(async(req, res) => {
 })
 
 const refreshAccessToken = asyncHandler(async(req, res) => {
+    // refresh token also known as session token.
+    // access token is short live and refresh token is long live.
+
+
+    // here we extract the refresh token
     const incomingRefreshToken = req.cookies.refreshToken || req.body.refreshToken
 
     if(!incomingRefreshToken){
@@ -266,7 +252,7 @@ const refreshAccessToken = asyncHandler(async(req, res) => {
 
 const changeCurrentPassword = asyncHandler(async(req,res) => {
     const {oldPassword, newPassword} = req.body
-    const user = await User.findById(req.user?._id) //here may be _id
+    const user = await User.findById(req.user?._id) 
     const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
 
     if(!isPasswordCorrect){
@@ -283,7 +269,6 @@ const changeCurrentPassword = asyncHandler(async(req,res) => {
 const getCurrentUser = asyncHandler(async(req, res) => {
     return res
     .status(200)
-    // .json(200, req.user, "current user fetched successfully")
     .json(
          new ApiResponse(200, req.user, "current user fetched successfully")
     )
@@ -316,13 +301,16 @@ const updateAccountDetails = asyncHandler(async(req, res) => {
 })
 
 const updateUserAvatar = asyncHandler(async(req, res) => {
+    console.log("request:", req);
+    
     const avatarLocalPath = req.file?.path
-
     if(!avatarLocalPath){
         throw new ApiError(400, "avatar file is missing")
     }
 
     const avatar = await uploadOnCloudinary(avatarLocalPath)
+    console.log("avatar:", avatar);
+    
     if(!avatar.url){
         throw new ApiError(400, "error while updating avatar")
     }
